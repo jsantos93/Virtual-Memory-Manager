@@ -1,0 +1,68 @@
+[03:00, 6/17/2019] leonardo melo: /*
+ * If the size of the logical address space is 2^m,
+ * and a page size is 2^n bytes,
+ * then the high-order m−n bits of a logical address designate the page number,
+ * and the n low-order bits designate the page offset.
+ *
+ * m = log2(PAGE_TABLE_ENTRIES * PAGE_SIZE_IN_BYTES); m = 16
+ * n = log2(PAGE_SIZE_IN_BYTES); n = 8
+ *
+ * pageNumber p = (m - n); p = 8 ([15:8]);
+ * pageOffset d = (n); n = 8 ([7:0])
+*/
+
+/*
+ * Here, in the logical address, n = 2 and m = 4.
+ * Using a page size of 4 bytes and a physical memory of 32 bytes (8 pages):
+ *   1. Logical address 0 is page 0, offset 0.
+ *   2. Indexing into the page table, we find that page 0 is in frame 5.
+ *   3. Thus, logical address 0 maps to physical address 20 [= (5 × 4) + 0]
+ *
+ * physical address = (Frame Number * Page Size) + Page Offset
+ *   1. Frame Number = getFrameNumber();
+ *   2. Page Size = PAGE_SIZE_IN_BYTES
+ *   3. Page Offset = getPageOffset();
+*/
+
+/*
+ * Pure Demand Paging: never bring a page into memory until it is required.
+ *
+ *  1. (10.2.2) free-frame list: a pool of free frames for satisfying such requests
+ *  2. (10.3) copy-on-write: if either process writes to a shared page, a copy of the shared page is created.
+ */
+
+/*
+ * Virtual address: 65416 Physical address: 30600 Value: 0
+ *    - virtualAddress = (pageNumber * PAGE_SIZE_IN_BYTES) + pageOffset
+ *    - toBinary(65416): 1111111110001000
+ *    - pageNumber = getPageNumber(1111111110001000) = 11111111 = 255
+ *    - pageOffset = getPageOffset(1111111110001000) = 10001000 = 136
+ *    - physicalAddress = (frameNumber * PAGE_SIZE_IN_BYTES) + pageOffset
+ *       1. **frameNumber = getFrameNumber() or
+ *              (FRAME_AMOUNT - pageOffset) > 1 ? (FRAME_AMOUNT - pageOffset)
+ *              : (FRAME_AMOUNT - pageOffset) + (FRAME_AMOUNT - 1)
+ *       2. result: (119 * 256) + 136 = 30600 [OK]
+ *
+ * Virtual address: 18295 Physical address: 2423 Value: -35
+ *    - virtualAddress = (pageNumber * PAGE_SIZE_IN_BYTES) + pageOffset
+ *    - toBinary(18295) = 100011101110111
+ *    - pageNumber = getPageNumber(100011101110111) = 1000111 = 71
+ *    - pageOffset = getPageOffset(100011101110111) = 01110111 = 119
+ *    - physicalAddress = (frameNumber * PAGE_SIZE_IN_BYTES) + pageOffset
+ *       1. **frameNumber = getFrameNumber() or
+ *              (FRAME_AMOUNT - pageOffset) > 1 ? (FRAME_AMOUNT - pageOffset)
+ *              : (FRAME_AMOUNT - pageOffset) + (FRAME_AMOUNT - 1)
+ *       2. result: (9 * 256) + 119 = 2423 [OK]
+ *
+ *
+ * Page fault:
+ *  page_address = page_number * PAGE_SIZE;
+ *  fseek(backing_store, page_address, ... )
+ *
+ * **Obs.: não sei se é o correto, porem funciona.
+ */
+
+<< = multiplicacao^2
+>> = divisao^2
+| = soma
+& = subtração
