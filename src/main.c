@@ -18,7 +18,7 @@
 #define PAGE_TABLE_ENTRIES       256
 #define PAGE_SIZE_IN_BYTES       256
 #define PAGE_NUMBER_SIZE_BITS    8
-#define FRAME_AMOUNT             256 // 128
+#define FRAME_AMOUNT             128
 #define FRAME_SIZE_IN_BYTES      256
 #define TLB_ENTRIES              16
 #define PHYSICAL_MEM_SIZE        (FRAME_AMOUNT * FRAME_SIZE_IN_BYTES)
@@ -31,12 +31,14 @@
 #define GET_PHYSICAL_ADDRESS(frameNumber, offsetNumber) ((frameNumber << PAGE_NUMBER_SIZE_BITS) | (offsetNumber))
 
 /* Data Structures. */
-int pageTable [PAGE_TABLE_ENTRIES];
-int physicalMemory [PHYSICAL_MEM_SIZE];
+signed char page   [PAGE_SIZE_IN_BYTES];
+int pageTable      [PAGE_TABLE_ENTRIES];
+int physicalMemory [FRAME_AMOUNT][FRAME_SIZE_IN_BYTES];
 
 /* File pointers. */
 FILE *addresses;
 FILE *backing_store;
+FILE *output;
 
 /* Statistics. */
 int addressAccessCount = 0;
@@ -45,10 +47,8 @@ int tlbHitCount = 0;
 
 /* Prototype functions. */
 int verifyPageTable(int pageNumber);
-int findFreeFrame(void);
-char getValueFromPhysicalMemory(int frameNumber, int offSetNumber);
-char *getFrameFromBackStore(FILE *backing_store, int pageNumber);
-void initializeArray(int *array, int size);
+int insertFromBackStore(int pageNumber);
+char *getFrameFromBackStore(int pageNumber);
 
 int main(int argc, const char *argv[])
 {
@@ -58,13 +58,14 @@ int main(int argc, const char *argv[])
     return -1;
   }
 
+  output = fopen("output.txt", "w");
   addresses = fopen(argv[1], "r");
   backing_store = fopen(argv[2], "rb");
   int pageReplacementAlgorithm = atoi(argv[3]);
 
   /* initialize data structures. */
   TLB tlb = initialize();
-  initializeArray(physicalMemory, PHYSICAL_MEM_SIZE);
+  memset(physicalMemory, -1, sizeof(physicalMemory[0][0]) * FRAME_AMOUNT * FRAME_SIZE_IN_BYTES);
 
   /* read through addresses.txt file, line-by-line. */
   int logicalAddress = 0;
@@ -72,53 +73,43 @@ int main(int argc, const char *argv[])
     addressAccessCount++;
 
     int pageNumber = GET_PAGE_NUMBER(logicalAddress);
-    int offSetNumber = GET_OFFSET_NUMBER(logicalAddress);
+    int offsetNumber = GET_OFFSET_NUMBER(logicalAddress);
     int frameNumber = -1;
 
     /* consulta na TLB e na Page Table */
     TLB_Entry *tlb_entry = query(tlb, pageNumber);
-    // case: ESTA na TLB.
+
+    // case: verificar se ESTA na TLB.
     if (tlb_entry != NULL) {
       tlbHitCount++;
       frameNumber = tlb_entry->frameNumber;
-    // case: NAO ESTA na TLB.
-    } else {
-      frameNumber = verifyPageTable(pageNumber);
-      if(frameNumber == -1 ) {
-        // char  page[PAGE_SIZE_IN_BYTES] = getFrameFromBackStore(pageNumber);
-        char *page = getFrameFromBackStore(backing_store, pageNumber);
-        int frameNumber = findFreeFrame();
-
-        for(int i = frameNumber; i <(frameNumber +FRAME_SIZE_IN_BYTES); i++)
-          physicalMemory[i] = page[i];
-
-        pageTable[pageNumber] = frameNumber;              // atualiza PageTable
-      }
-
-      /* salvar na TLB. */
-      TLB_Entry *newEntry = malloc(sizeof(TLB_Entry));
-      newEntry->frameNumber =frameNumber;
-      newEntry->pageNumber = pageNumber;
-      newEntry->isFree = 1;
-      newEntry->entryAge = 0;
-
-      insertEntry(&tlb, newEntry, pageReplacementAlgorithm);
     }
 
-    int physicalAddress = GET_PHYSICAL_ADDRESS(frameNumber, offSetNumber);
-    char value = getValueFromPhysicalMemory(pageNumber, offSetNumber);
-    char value02 = getValueFromPhysicalMemory(physicalAddress, offSetNumber);
-    char value03 = getValueFromPhysicalMemory((char)(physicalAddress), offSetNumber);
+    if(frameNumber == -1 ) {
+      // case: verificar se ESTA na PageTable.
+      int pageTableFrameNumber = verifyPageTable(pageNumber);
+      frameNumber = (pageTableFrameNumber == -1) ? insertFromBackStore(pageNumber) : pageTableFrameNumber;
+      pageFaultCount++;
+    }
 
-    printf("Virtual Address: %d ", frameNumber);
-    printf("Physical Address01: %d ", pageNumber);
-    printf("Physical Address02: %d ", physicalAddress);
-    printf("Physical Address03: %d ", (char)(physicalAddress));
-    printf("Value01: %d ", value);
-    printf("Value02: %d ", value02);
-    printf("Value04: %d \n", value03);
+    /* inserir frame e page number na TLB. */
+    TLB_Entry *newEntry = malloc(sizeof(TLB_Entry));
+    newEntry->frameNumber =frameNumber;
+    newEntry->pageNumber = pageNumber;
+    newEntry->isFree = 1;
+    newEntry->entryAge = 0;
+    insertEntry(&tlb, newEntry, pageReplacementAlgorithm);
+
+    /* inserir frame e page number na TLB. */
+    int physicalAddress = GET_PHYSICAL_ADDRESS(frameNumber, offsetNumber);
+    signed char value = physicalMemory[frameNumber][offsetNumber];
+
+    printf("Virtual Address: %d\t", logicalAddress);
+    printf("Physical Address: %d\t", physicalAddress);
+    printf("Value: %d\n", value);
   }
 
+  /* print statics */
   printf("Page Fault Rate: %f\n", (float)(pageFaultCount/addressAccessCount));
   printf("TLB Hit Rate: %f\n", (float)(tlbHitCount/addressAccessCount));
 
@@ -132,43 +123,36 @@ int main(int argc, const char *argv[])
 /* Takes a page number and verifies pageTable for frame number. */
 int verifyPageTable(int pageNumber)
 {
-  for(int index = 0; index < 256; index++) {
-    if(pageTable[pageNumber])
+  for(int pageEntry = 0; pageEntry < PAGE_TABLE_ENTRIES; pageEntry++) {
+    if(pageTable[pageEntry] == pageNumber || pageTable[pageEntry] == -1)
+      return pageTable[pageEntry];
+    else if(pageTable[pageNumber] == pageNumber)
       return pageTable[pageNumber];
   }
 
   return -1;
 }
 
-int findFreeFrame(void)
+char *getFrameFromBackStore(int pageNumber)
 {
-  for(int index = 0; index < PHYSICAL_MEM_SIZE; index + PAGE_SIZE_IN_BYTES) {
-    if(physicalMemory[index] == (char)(-1)) // TO DO: Fix this comparison... before: '-1'
-      return index;
+  fseek(backing_store, (PAGE_SIZE_IN_BYTES * pageNumber), SEEK_SET);
+  fread(page, PAGE_SIZE_IN_BYTES, sizeof(signed char), backing_store);
+
+  return page;
+}
+
+int insertFromBackStore(int pageNumber)
+{
+  char *page = getFrameFromBackStore(pageNumber);
+
+  for(int frameNumber = 0; frameNumber < FRAME_AMOUNT; frameNumber++) {
+    for(int frameByte = 0; frameByte < FRAME_SIZE_IN_BYTES; frameByte++) {
+      if(physicalMemory[frameNumber][frameByte] == -1) {
+        physicalMemory[frameNumber][frameByte] = page[frameByte];
+        pageTable[pageNumber] = frameNumber;
+      }
+    }
   }
 
   return -1;
-}
-
-char getValueFromPhysicalMemory(int frameNumber, int offSetNumber)
-{
-  if(physicalMemory[frameNumber + offSetNumber])
-    return physicalMemory[frameNumber + offSetNumber];
-
-  return -1;
-}
-
-char *getFrameFromBackStore(FILE *backing_store, int pageNumber)
-{
-  char frame[FRAME_SIZE_IN_BYTES];
-  fseek(backing_store, FRAME_SIZE_IN_BYTES *pageNumber, SEEK_SET);
-  fread(backing_store, FRAME_SIZE_IN_BYTES, 1, backing_store);
-
-  return frame;
-}
-
-void initializeArray(int *array, int size)
-{
-  for(int index = 0; index < size; index++)
-    array[index] = -1;
 }

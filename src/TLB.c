@@ -36,17 +36,17 @@ TLB initialize(void)
 
 TLB_Entry *query(TLB table, int pageNumber)
 {
-    TLB_Entry *current = table.head;
+  TLB_Entry *current = table.head;
 
-    while (current != NULL) {
-        if (current->pageNumber == pageNumber)
-            return current;
+  while (current != NULL) {
+    if (current->pageNumber == pageNumber)
+      return current;
 
-        current->entryAge++;
-        current = current->next;
-    }
+    current->entryAge++;
+    current = current->next;
+  }
 
-    return NULL;
+  return NULL;
 }
 
 void lruInsertion(TLB *table, TLB_Entry *entry)
