@@ -1,13 +1,15 @@
 # Virtual Memory Management Project
 
-* CESAR School
-* Computer Science 2018.1
-* Software Insfrastructure (Operating Systems)
-* Professor Erico Teixeira
-* Group 02: Arthur Carlos, João Victor Pessoa, Jonathan Coutinho, Leonardo Melo and Pedro Henrique
-* Reference: Operating System Concepts 10th Edition, by Abraham Silberschatz et al (Chapter 10)
+- CESAR School
+- Computer Science 2018.1
+- Software Insfrastructure (Operating Systems)
+- Professor Erico Teixeira
+- Group 02: Arthur Carlos, João Victor Pessoa, Jonathan Coutinho, Leonardo Melo and Pedro Henrique
+- Reference: Operating System Concepts 10th Edition, by Abraham Silberschatz et al (Chapter 10)
 
 ## Programming Projects
+
+.
 
 ### Designing a Virtual Memory Manager
 
@@ -21,12 +23,12 @@ Your program will read a file containing several 32-bit integer numbers that rep
 
 Other specifics include the following:
 
-* 2^8 entries in the page table
-* Page size of 2^8 bytes
-* 16 entries in the TLB
-* Frame size of 2^8 bytes
-* 256 frames
-* Physical memory of 65,536 bytes (256 frames * 256-byte frame size)
+- 2^8 entries in the page table
+- Page size of 2^8 bytes
+- 16 entries in the TLB
+- Frame size of 2^8 bytes
+- 256 frames
+- Physical memory of 65,536 bytes (256 frames \* 256-byte frame size)
 
 Additionally, your program need only be concerned with reading logical addresses and translating them to their corresponding physical addresses. You do not need to support writing to the logical address space.
 
@@ -60,7 +62,7 @@ First, write a simple program that extracts the page number and offset based on:
 
 from the following integer numbers:
 
-* 1, 256, 32768, 32769, 128, 65534, 33153
+- 1, 256, 32768, 32769, 128, 65534, 33153
 
 Perhaps the easiest way to do this is by using the operators for bit-masking and bit-shifting. Once you can correctly establish the page number and offset from an integer number, you are ready to begin.
 
@@ -68,16 +70,16 @@ Initially, we suggest that you bypass the TLB and use only a page table. You can
 
 #### How to Run Your Program
 
-  1. Compile your with: `$ gcc main.c`
-  2. Then, run your program as follows: `$ ./a.out addresses.txt BACKING_STORE.bin`
+1. Compile your with: `$ gcc main.c`
+2. Then, run your program as follows: `$ ./a.out addresses.txt BACKING_STORE.bin`
 
 Your program will read in the file `addresses.txt`, which contains 1,000 logical addresses ranging from 0 to 65535. Your program is to translate each logical address to a physical address and determine the contents of the signed byte stored at the correct physical address. (Recall that in the C language, the `char` data type occupies a byte of storage, so we suggest using char values.)
 
 Your program is to output the following values:
 
-  1. The logical address being translated (the integer value being read from `addresses.txt`).
-  2. The corresponding physical address (what your program translates the logical address to).
-  3. The signed byte value stored in physical memory at the translated physical address.
+1. The logical address being translated (the integer value being read from `addresses.txt`).
+2. The corresponding physical address (what your program translates the logical address to).
+3. The signed byte value stored in physical memory at the translated physical address.
 
 We also provide the file `correct.txt`, which contains the correct output values for the file `addresses.txt`. You should use this file to determine if your program is correctly translating logical to physical addresses.
 
@@ -85,8 +87,8 @@ We also provide the file `correct.txt`, which contains the correct output values
 
 After completion, your program is to report the following statistics:
 
-  1. Page-fault rate--The percentage of address references that resulted in page faults.
-  2. TLB hit rate--The percentage of address references that were resolved in the TLB.
+1. Page-fault rate--The percentage of address references that resulted in page faults.
+2. TLB hit rate--The percentage of address references that were resolved in the TLB.
 
 Since the logical addresses in `addresses.txt` were generated randomly and do not reflect any memory access locality, do not expect to have a high TLB hit rate.
 
